@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Promise in an unrelated exported payload",
+    "source": "export type Payload = Promise<number>;"
+  },
+  {
+    "name": "Promisable defined using PromiseLike",
+    "source": "type Promisable<T> = T | PromiseLike<T>;"
+  },
+  {
+    "name": "PromiseLike middleware return",
+    "source": "export type Middleware = { fn(): PromiseLike<number> };"
+  },
+  {
+    "name": "Promise in middleware data",
+    "source": "type Promisable<T> = T | Promise<T>; export type Middleware = { data: Promise<number>; fn(): Promisable<{}> };"
+  },
+  {
+    "name": "Promise nested inside a middleware result",
+    "source": "export type Middleware = { fn(): Promise<{data: Promise<number>}> };"
+  },
+  {
+    "name": "Promise returned by an unreviewed platform method",
+    "source": "export interface Platform { futureMethod(): Promise<number>; }"
+  },
+  {
+    "name": "Promise in a size.apply parameter",
+    "source": "export interface SizeOptions { apply(data: Promise<number>): void; }"
+  },
+  {
+    "name": "Asynchronous callback passed to size.apply",
+    "source": "export interface SizeOptions { apply(callback: () => Promise<void>): void; }"
+  },
+  {
+    "name": "Middleware returning an asynchronous function",
+    "source": "export type Middleware = { fn(): () => Promise<number> };"
+  },
+  {
+    "name": "Middleware returning an object with an asynchronous method",
+    "source": "export type Middleware = { fn(): {fn(): Promise<number>} };"
+  },
+  {
+    "name": "Asynchronous generic constraint on ComputePosition",
+    "source": "export type ComputePosition = <T extends () => Promise<number>>(value: T) => number;"
+  },
+  {
+    "name": "Asynchronous callback passed to computePosition",
+    "source": "export declare function computePosition(callback: () => Promise<number>): number;"
+  },
+  {
+    "name": "Promise shadowed by a local type alias",
+    "source": "type Promise<T> = {data: T}; export type ComputePosition = () => Promise<number>;"
+  },
+  {
+    "name": "Promisable exported directly",
+    "source": "export type Promisable<T> = T | Promise<T>;"
+  },
+  {
+    "name": "Promisable exported through a named export",
+    "source": "type Promisable<T> = T | Promise<T>; export {Promisable};"
+  },
+  {
+    "name": "Promisable declared inside a namespace",
+    "source": "declare namespace Data { type Promisable<T> = {data: T}; }"
+  },
+  {
+    "name": "Qualified globalThis.Promise return",
+    "source": "export type ComputePosition = () => globalThis.Promise<number>;"
+  },
+  {
+    "name": "Promise shadowed by a generic parameter",
+    "source": "export type ComputePosition = <Promise>(value: Promise) => Promise;"
+  },
+  {
+    "name": "Promisable with a default generic parameter",
+    "source": "type Promisable<T = number> = T | Promise<T>;"
+  },
+  {
+    "name": "Promisable with a constrained generic parameter",
+    "source": "type Promisable<T extends string> = T | Promise<T>;"
+  },
+  {
+    "name": "Promise imported from another module",
+    "source": "import {Promise} from \"other\"; export type ComputePosition = () => Promise<number>;"
+  },
+  {
+    "name": "Nested Promise return from ComputePosition",
+    "source": "export type ComputePosition = () => Promise<Promise<number>>;"
+  },
+  {
+    "name": "Promisable exported under another name",
+    "source": "type Promisable<T> = T | Promise<T>; export {Promisable as PublicResult};"
+  },
+  {
+    "name": "Promisable exported as default",
+    "source": "type Promisable<T> = T | Promise<T>; export default Promisable;"
+  },
+  {
+    "name": "Promise referenced through an import type",
+    "source": "export type ComputePosition = () => import(\"external\").Promise<number>;"
+  },
+  {
+    "name": "Promise constructor type query",
+    "source": "export type Constructor = typeof Promise;"
+  }
+]

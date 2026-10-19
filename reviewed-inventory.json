@@ -1,0 +1,52 @@
+{
+  "core": {
+    "functions": [
+      "arrow.fn",
+      "autoPlacement.fn",
+      "computePosition",
+      "convertValueToCoords",
+      "detectOverflow",
+      "flip.fn",
+      "hide.fn",
+      "inline.fn",
+      "offset.fn",
+      "shift.fn",
+      "size.fn"
+    ],
+    "awaits": {
+      "arrow.fn: platform.getDimensions": 1,
+      "arrow.fn: platform.getOffsetParent": 1,
+      "arrow.fn: platform.isElement": 1,
+      "autoPlacement.fn: platform.detectOverflow": 1,
+      "autoPlacement.fn: platform.isRTL": 1,
+      "computePosition: fn": 1,
+      "computePosition: platform.getElementRects": 2,
+      "computePosition: platform.isRTL": 1,
+      "convertValueToCoords: platform.isRTL": 1,
+      "detectOverflow: platform.convertOffsetParentRelativeRectToViewportRelativeRect": 1,
+      "detectOverflow: platform.getClippingRect": 1,
+      "detectOverflow: platform.getDocumentElement": 1,
+      "detectOverflow: platform.getOffsetParent": 1,
+      "detectOverflow: platform.getScale": 1,
+      "detectOverflow: platform.isElement": 2,
+      "flip.fn: platform.detectOverflow": 1,
+      "flip.fn: platform.isRTL": 1,
+      "hide.fn: platform.detectOverflow": 2,
+      "inline.fn: platform.getClientRects": 1,
+      "inline.fn: platform.getElementRects": 1,
+      "offset.fn: convertValueToCoords": 1,
+      "shift.fn: platform.detectOverflow": 1,
+      "size.fn: apply": 1,
+      "size.fn: platform.detectOverflow": 1,
+      "size.fn: platform.getDimensions": 1,
+      "size.fn: platform.isRTL": 1
+    }
+  },
+  "dom": {
+    "functions": ["getElementRects"],
+    "awaits": {
+      "getElementRects: getDimensionsFn": 1,
+      "getElementRects: getOffsetParentFn": 1
+    }
+  }
+}

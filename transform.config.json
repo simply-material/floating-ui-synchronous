@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "core": {
+    "name": "@floating-ui-synchronous-local/core",
+    "version": "1.8.0-synchronous.1",
+    "global": "FloatingUISynchronousCore"
+  },
+  "dom": {
+    "name": "@floating-ui-synchronous-local/dom",
+    "version": "1.8.0-synchronous.1",
+    "global": "FloatingUISynchronousDOM"
+  }
+}

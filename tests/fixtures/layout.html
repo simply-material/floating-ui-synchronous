@@ -1,0 +1,57 @@
+<!--
+  Browser layout used by ../browser/layout.spec.ts. The test inserts this fragment into the
+  page, positions the floating element, and compares generated and upstream DOM geometry.
+  The scrollable, scaled container exercises clipping and coordinate conversions.
+-->
+<style>
+  body {
+    margin: 0;
+  }
+
+  .viewport {
+    position: relative;
+    overflow: auto;
+    width: 320px;
+    height: 220px;
+    border: 7px solid;
+    padding: 11px;
+    transform: translate(23px, 17px) scale(1.2);
+    transform-origin: 0 0;
+  }
+
+  .content {
+    width: 600px;
+    height: 500px;
+  }
+
+  .anchor {
+    position: absolute;
+    left: 285px;
+    top: 185px;
+    width: 63px;
+    height: 27px;
+  }
+
+  .floating {
+    left: 0;
+    top: 0;
+    width: 120px;
+    height: 80px;
+    box-sizing: border-box;
+  }
+
+  .arrow {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+  }
+</style>
+
+<div class="viewport">
+  <div class="content">
+    <div class="anchor"></div>
+    <div class="floating">
+      <div class="arrow"></div>
+    </div>
+  </div>
+</div>

@@ -2,6 +2,9 @@
 /out-tsc
 
 /node_modules
+/.cache
+/dist
+/output
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -10,3 +13,4 @@ yarn-error.log*
 
 .vscode/*
 .idea/
+.DS_Store

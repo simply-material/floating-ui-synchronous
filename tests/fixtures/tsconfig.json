@@ -1,0 +1,33 @@
+{
+  /*
+   * Editor project for the source fixtures listed below. Requires npm run build so the
+   * generated declarations exist. ../types.test.ts compiles its isolated consumer without
+   * this configuration, using installed package resolution instead of these path mappings.
+   */
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": false,
+    "types": [],
+    "paths": {
+      "@test/synchronous-core": ["../../dist/core/dist/floating-ui.core.d.mts"],
+      "@test/synchronous-dom": ["../../dist/dom/dist/floating-ui.dom.d.mts"],
+      "@example/synchronous-core": ["../../dist/core/dist/floating-ui.core.d.mts"],
+      // DOM's declarations import this name. Keep it aligned with core.name in transform.config.json.
+      "@floating-ui-synchronous-local/core": ["../../dist/core/dist/floating-ui.core.d.mts"]
+    }
+  },
+  "files": [
+    "consumer.ts",
+    "contracts.input.d.ts",
+    "contracts.expected.d.ts",
+    "environment.d.ts",
+    "measurement.js",
+    "semantics.input.js"
+  ]
+}
