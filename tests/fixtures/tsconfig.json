@@ -19,11 +19,14 @@
       "@test/synchronous-dom": ["../../dist/dom/dist/floating-ui.dom.d.mts"],
       "@example/synchronous-core": ["../../dist/core/dist/floating-ui.core.d.mts"],
       // DOM's declarations import this name. Keep it aligned with core.name in transform.config.json.
-      "@floating-ui-synchronous-local/core": ["../../dist/core/dist/floating-ui.core.d.mts"]
+      "@simply-material/floating-ui-core-synchronous": [
+        "../../dist/core/dist/floating-ui.core.d.mts"
+      ]
     }
   },
   "files": [
-    "consumer.ts",
+    "core-consumer.ts",
+    "dom-consumer.ts",
     "contracts.input.d.ts",
     "contracts.expected.d.ts",
     "environment.d.ts",

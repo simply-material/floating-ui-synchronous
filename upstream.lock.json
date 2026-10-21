@@ -12,9 +12,17 @@
     "tarball": "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.8.0.tgz"
   },
   "utils": {
-    "name": "@floating-ui/utils",
-    "version": "0.2.12",
-    "integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==",
-    "tarball": "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.12.tgz"
+    "core": {
+      "name": "@floating-ui/utils",
+      "version": "0.2.12",
+      "integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==",
+      "tarball": "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.12.tgz"
+    },
+    "dom": {
+      "name": "@floating-ui/utils",
+      "version": "0.2.12",
+      "integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==",
+      "tarball": "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.12.tgz"
+    }
   }
 }

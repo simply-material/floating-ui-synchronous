@@ -16,7 +16,14 @@
     "test:packages": "vitest run tests/packages.test.ts",
     "test:types": "vitest run tests/types.test.ts",
     "test:browser": "playwright test",
-    "check": "npm run format:check && npm run typecheck && npm run build && npm test && npm run test:browser"
+    "check": "npm run format:check && npm run typecheck && npm run build && tsc -p tests/fixtures/tsconfig.json && npm test && npm run test:browser",
+    "test:release": "vitest run tests/release",
+    "release:select": "node scripts/select-release.ts",
+    "release:build": "node scripts/build-release.ts",
+    "release:validate": "node scripts/validate-release.ts",
+    "release:publish": "node scripts/publish.ts",
+    "release:smoke": "node scripts/smoke.ts",
+    "release:dry-run": "node scripts/dry-run.ts"
   },
   "devDependencies": {
     "@floating-ui/core": "1.8.0",
@@ -24,8 +31,10 @@
     "@floating-ui/utils": "0.2.12",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
+    "@types/semver": "7.8.0",
     "prettier": "3.9.10",
     "rollup": "4.64.9",
+    "semver": "7.8.5",
     "tar": "7.5.22",
     "terser": "5.51.2",
     "typescript": "5.9.3",

@@ -1,11 +1,12 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { config, packageKeys, root } from '../../src/config.ts';
+import { join } from 'node:path';
+import { config, packageKeys } from '../../src/config.ts';
 import { createConsumer } from '../helpers/consumer.ts';
 
 // Every synchronous browser module comes from npm pack + npm install.
 const consumer = createConsumer();
+const reference = createConsumer('upstream');
 
 // URL-to-file allowlist; request paths are never resolved directly against the filesystem.
 const routes = new Map<string, string>();
@@ -25,35 +26,41 @@ for (const key of packageKeys) {
     );
     routes.set(
       '/upstream/' + key + '.' + extension,
-      join(
-        root,
-        'node_modules',
-        '@floating-ui',
-        key,
-        'dist',
-        'floating-ui.' + key + '.' + extension,
-      ),
+      join(reference.packageDirectory(key), 'dist', 'floating-ui.' + key + '.' + extension),
     );
   }
 }
 
-// Installed, pinned utils package shared by upstream and transformed browser ESM imports.
-const utils = dirname(consumer.require.resolve('@floating-ui/utils/package.json'));
-routes.set('/utils.mjs', join(utils, 'dist/floating-ui.utils.mjs'));
-routes.set('/utils-dom.mjs', join(utils, 'dist/floating-ui.utils.dom.mjs'));
-
-// Import-map entries keep each DOM variant connected to its own core implementation.
+// Scopes resolve each package's own utils selection, even when core and DOM use different versions.
 const imports = {
   [config.core.name]: '/synchronous/core.mjs',
   [config.dom.name]: '/synchronous/dom.mjs',
   '@floating-ui/core': '/upstream/core.mjs',
-  '@floating-ui/utils': '/utils.mjs',
-  '@floating-ui/utils/dom': '/utils-dom.mjs',
 };
+const scopes: Record<string, Record<string, string>> = {};
+
+for (const [variant, installation] of [
+  ['synchronous', consumer],
+  ['upstream', reference],
+] as const) {
+  for (const key of packageKeys) {
+    const prefix = '/' + variant + '/' + key;
+    const utils = installation.dependencyDirectory(key, '@floating-ui/utils');
+
+    routes.set(prefix + '-utils.mjs', join(utils, 'dist/floating-ui.utils.mjs'));
+    routes.set(prefix + '-utils-dom.mjs', join(utils, 'dist/floating-ui.utils.dom.mjs'));
+
+    scopes[prefix + '.mjs'] = {
+      '@floating-ui/utils': prefix + '-utils.mjs',
+      '@floating-ui/utils/dom': prefix + '-utils-dom.mjs',
+    };
+    scopes[prefix + '.esm.js'] = scopes[prefix + '.mjs'];
+  }
+}
 
 const html =
   '<!doctype html><html><head><meta charset="UTF-8"><script type="importmap">' +
-  JSON.stringify({ imports }) +
+  JSON.stringify({ imports, scopes }) +
   '</script></head><body></body></html>';
 
 createServer((request, response) => {

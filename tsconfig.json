@@ -10,6 +10,6 @@
     "noUnusedLocals": true,
     "skipLibCheck": true
   },
-  "include": ["src", "tests", "playwright.config.ts", "vitest.config.ts"],
+  "include": ["src", "tests", "playwright.config.ts", "vitest.config.ts", "scripts"],
   "exclude": ["tests/fixtures"]
 }

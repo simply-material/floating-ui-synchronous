@@ -1,17 +1,26 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, resolve, relative } from 'node:path';
 import { rollup } from 'rollup';
 import { minify } from 'terser';
-import { config, inputs, packageKeys, root, type PackageKey } from './config.ts';
+import { satisfies } from 'semver';
+import {
+  config,
+  inputs,
+  packageKeys,
+  releaseIdentity,
+  repository,
+  root,
+  type PackageKey,
+} from './config.ts';
 import { prepareInputs } from './upstream.ts';
 import { assertInventory, inspectImplementation, transformImplementation } from './transform.ts';
 import { transformDeclarations } from './declarations.ts';
 
+/**
+ * Serializes generated metadata with readable indentation and a final newline.
+ */
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
-
-const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
 /**
  * Provenance identifying the local transformer state that produced an artifact.
@@ -28,63 +37,41 @@ interface TransformerIdentity {
   dirty: boolean;
 
   /**
-   * Digest of source, dependency locks, configuration, and reviewed inventory contents.
+   * Last mainline commit affecting transformer source or build configuration.
    */
-  inputSha256: string;
+  sourceRevision: string;
 }
 
 /**
- * Hashes release contents while excluding provenance and the package's own allocated version.
- * Dependency versions still contribute, so a changed core pairing changes DOM's fingerprint.
+ * Captures checkout provenance and the last mainline commit affecting publication inputs.
  *
- * @param files - Package-relative filenames mapped to their complete UTF-8 contents.
- * @returns A digest for deciding whether generated artifacts need a new package revision.
+ * @param directory - Checkout to inspect; tests use isolated fixture repositories.
+ * @throws Error - If Git history or working-tree status cannot be read.
  */
-export function releaseFingerprint(files: Record<string, string>): string {
-  const contents = Object.entries(files)
-    .filter(([path]) => path !== 'provenance.json')
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([path, text]) => {
-      if (path === 'package.json') {
-        const { version: _version, ...manifest } = JSON.parse(text);
-        text = JSON.stringify(manifest);
-      }
+export function transformerIdentity(directory = root): TransformerIdentity {
+  /**
+   * Runs Git relative to the inspected checkout, returning trimmed command output.
+   */
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
 
-      return [path, text];
-    });
-
-  return sha256(JSON.stringify(contents));
-}
-
-/**
- * Captures Git state and hashes local build inputs, including any uncommitted source changes.
- * @throws Error - If the Git revision or working-tree status cannot be read.
- */
-async function transformerIdentity(): Promise<TransformerIdentity> {
-  const paths = [
-    'package.json',
-    'package-lock.json',
-    'transform.config.json',
-    'upstream.lock.json',
-    'reviewed-inventory.json',
-    ...(await readdir(join(root, 'src'))).sort().map((p) => 'src/' + p),
-  ];
-
-  const contents = await Promise.all(
-    paths.map(async (path) => [path, await readFile(join(root, path), 'utf8')]),
-  );
-
-  const revision = execFileSync('git', ['rev-parse', 'HEAD'], {
-    cwd: root,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  }).trim();
-
-  const dirty = Boolean(
-    execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
-  );
-
-  return { revision, dirty, inputSha256: sha256(JSON.stringify(contents)) };
+  return {
+    revision: git('rev-parse', 'HEAD'),
+    dirty: Boolean(git('status', '--porcelain')),
+    // First-parent history includes source changes introduced by merge commits.
+    sourceRevision: git(
+      'log',
+      '-1',
+      '--first-parent',
+      '--format=%H',
+      '--',
+      'src',
+      'package.json',
+      'package-lock.json',
+      'transform.config.json',
+      'reviewed-inventory.json',
+    ),
+  };
 }
 
 /**
@@ -207,42 +194,41 @@ async function generateJavaScript(
 }
 
 /**
- * Verifies inputs, transforms core and DOM together, and writes the two packages.
- * DOM imports and depends on the exact configured core version; utils keeps its upstream range.
- * Both packages finish transformation before existing output directories are replaced.
+ * Verifies inputs and writes selected packages; defaults to the baseline core/DOM pair.
+ * DOM retains its configured caret dependency; utils keeps its upstream range.
+ * All selected transformations finish before their output directories are replaced.
  *
- * This generates artifacts and provenance, but does not run the test suite or publish packages.
  * @param outputDirectory - Parent of the generated core/ and dom/ directories; defaults to the repository's dist/.
+ * @param packages - Packages to transform; a core-only build does not prepare DOM.
  * @throws Error - If inputs differ from reviewed expectations or any transformation/output check fails.
  */
-export async function build(outputDirectory = join(root, 'dist')): Promise<void> {
+export async function build(
+  outputDirectory = join(root, 'dist'),
+  packages: readonly PackageKey[] = packageKeys,
+): Promise<void> {
   const outputRoot = resolve(outputDirectory);
-  const directories = await prepareInputs();
+  const directories = await prepareInputs(packages);
   const reviewed = JSON.parse(await readFile(join(root, 'reviewed-inventory.json'), 'utf8'));
-  const identity = await transformerIdentity();
+  const identity = transformerIdentity();
   const outputs: Record<string, Record<string, string>> = {};
 
-  for (const key of packageKeys) {
-    const upstream = JSON.parse(await readFile(join(directories[key], 'package.json'), 'utf8'));
+  for (const { key, packageDirectory, utilsDirectory } of directories) {
+    const upstream = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
 
-    const expectedDependencies =
-      key === 'core'
-        ? { '@floating-ui/utils': '^0.2.12' }
-        : { '@floating-ui/core': '^1.8.0', '@floating-ui/utils': '^0.2.12' };
-    assertInventory(upstream.dependencies, expectedDependencies, 'Upstream dependencies');
+    validateDependencies(key, upstream.dependencies);
 
     const input = await readFile(
-      join(directories[key], 'dist', 'floating-ui.' + key + '.mjs'),
+      join(packageDirectory, 'dist', 'floating-ui.' + key + '.mjs'),
       'utf8',
     );
     assertInventory(inspectImplementation(input), reviewed[key]);
     const code = transformImplementation(input, config.core.name);
-    const files = await generateJavaScript(key, code, directories.utils);
+    const files = await generateJavaScript(key, code, utilsDirectory);
 
     for (const extension of ['d.ts', 'd.mts']) {
       const filename = 'dist/floating-ui.' + key + '.' + extension;
       files[filename] = transformDeclarations(
-        await readFile(join(directories[key], filename), 'utf8'),
+        await readFile(join(packageDirectory, filename), 'utf8'),
         config.core.name,
         filename,
       );
@@ -252,14 +238,19 @@ export async function build(outputDirectory = join(root, 'dist')): Promise<void>
 
     if (key === 'dom') {
       delete dependencies['@floating-ui/core'];
-      dependencies[config.core.name] = config.core.version;
+      dependencies[config.core.name] = config.dom.coreRange;
     }
 
     const manifest = {
       name: config[key].name,
       version: config[key].version,
+      synchronousRelease: releaseIdentity(key, identity.sourceRevision),
       private: config.private,
       description: 'Generated synchronous variant of ' + inputs[key].name,
+      repository: { type: 'git', url: 'https://github.com/' + repository + '.git' },
+      homepage: 'https://github.com/' + repository + '#readme',
+      bugs: { url: 'https://github.com/' + repository + '/issues' },
+      publishConfig: { access: 'public', registry: 'https://registry.npmjs.org' },
       license: upstream.license,
       main: upstream.main,
       module: upstream.module,
@@ -272,46 +263,52 @@ export async function build(outputDirectory = join(root, 'dist')): Promise<void>
     };
 
     files['package.json'] = json(manifest);
-    files['LICENSE'] = await readFile(join(directories[key], 'LICENSE'), 'utf8');
+    files['LICENSE'] = await readFile(join(packageDirectory, 'LICENSE'), 'utf8');
     files['README.md'] = [
       `# ${config[key].name}`,
       `Generated from ${inputs[key].name}@${inputs[key].version}.`,
-      'Positioning, platform methods and middleware execute synchronously. Custom callbacks, including size.apply, must be synchronous. Promise-returning callbacks are unsupported; no runtime guard is added.',
-      'The synchronous prerelease label identifies the synchronous variant, not experimental quality. See provenance.json for exact inputs.',
+      'Positioning, platform methods and middleware execute synchronously. Custom callbacks, including size.apply, must be synchronous.',
+      'Major/minor versions follow the original Floating UI packages; patch versions also include transformer fixes. See provenance.json for exact inputs.',
       '',
     ].join('\n\n');
     files['provenance.json'] = json({
       // Version of this metadata structure, independent of either package's release version.
-      schemaVersion: 1,
+      schemaVersion: 2,
 
       upstream: inputs[key],
       transformer: identity,
       configuration: config,
+      inputs,
 
-      // Pair selected for validation; recording it here does not attest that tests have run.
       validationPair: {
         core: {
           upstream: inputs.core.version,
           name: config.core.name,
           version: config.core.version,
         },
-        dom: { upstream: inputs.dom.version, name: config.dom.name, version: config.dom.version },
+        ...(packages.includes('dom')
+          ? {
+              dom: {
+                upstream: inputs.dom.version,
+                name: config.dom.name,
+                version: config.dom.version,
+              },
+            }
+          : {}),
       },
 
       // Separates the pinned validation input from the range consumers will resolve.
       utils: {
-        testVersion: inputs.utils.version,
-        integrity: inputs.utils.integrity,
+        testVersion: inputs.utils[key].version,
+        integrity: inputs.utils[key].integrity,
         dependencyRange: dependencies['@floating-ui/utils'],
       },
-
-      releaseFingerprint: releaseFingerprint(files),
     });
     outputs[key] = files;
   }
 
-  // Only replace the two generated package directories after transformation succeeds.
-  for (const key of packageKeys) {
+  // Only replace selected package directories after transformation succeeds.
+  for (const key of packages) {
     const destination = resolve(outputRoot, key);
     if (relative(outputRoot, destination) !== key) {
       throw new Error('Unsafe output directory');
@@ -325,5 +322,31 @@ export async function build(outputDirectory = join(root, 'dist')): Promise<void>
     }
 
     console.log('Built ' + config[key].name + '@' + config[key].version);
+  }
+}
+
+/**
+ * Accepts upstream range changes while requiring reviewed dependency names and compatible inputs.
+ *
+ * @param key - Package whose dependency requirements to validate.
+ * @param dependencies - Upstream manifest's declared dependency ranges.
+ * @throws Error - For an unexpected dependency or an incompatible upstream/transformed version.
+ */
+export function validateDependencies(key: PackageKey, dependencies: Record<string, string>): void {
+  const expected =
+    key === 'core' ? ['@floating-ui/utils'] : ['@floating-ui/core', '@floating-ui/utils'];
+
+  assertInventory(Object.keys(dependencies ?? {}).sort(), expected, 'Upstream dependencies');
+
+  for (const name of expected) {
+    const input = name === '@floating-ui/core' ? inputs.core : inputs.utils[key];
+
+    if (typeof dependencies[name] !== 'string' || !satisfies(input.version, dependencies[name])) {
+      throw new Error('Locked input does not satisfy upstream dependency: ' + name);
+    }
+  }
+
+  if (key === 'dom' && !satisfies(config.core.version, config.dom.coreRange)) {
+    throw new Error('DOM validation core must satisfy its transformed dependency range');
   }
 }

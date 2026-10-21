@@ -1,0 +1,133 @@
+name: Release synchronous packages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and validate without publishing or dispatching another run
+        type: boolean
+        default: true
+
+concurrency:
+  group: synchronous-package-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+
+      - name: Select one publication
+        id: select
+        run: npm run release:select
+
+      - if: steps.select.outputs.available == 'true'
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Validate transformer baseline
+        if: steps.select.outputs.available == 'true'
+        run: npm run check
+
+      - name: Build selected archive
+        id: build
+        if: steps.select.outputs.available == 'true'
+        env:
+          RELEASE_DIRECTORY: ${{ steps.select.outputs.directory }}
+        run: npm run release:build -- "$RELEASE_DIRECTORY"
+      - name: Validate installed candidate
+        if: steps.select.outputs.available == 'true'
+        env:
+          RELEASE_DIRECTORY: ${{ steps.select.outputs.directory }}
+        run: npm run release:validate -- "$RELEASE_DIRECTORY"
+      - uses: actions/upload-artifact@v4
+        if: steps.select.outputs.available == 'true'
+        with:
+          name: release-review
+          path: ${{ steps.select.outputs.directory }}
+          if-no-files-found: error
+
+      - name: Simulate publication
+        if: steps.select.outputs.available == 'true' && (vars.RELEASE_PUBLISH_ENABLED != 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run))
+        env:
+          RELEASE_DIRECTORY: ${{ steps.select.outputs.directory }}
+          FLOATING_UI_DRY_RUN: 'true'
+        run: npm run release:publish -- "$RELEASE_DIRECTORY"
+
+      - name: Skip publishing if main has advanced
+        id: ready
+        if: steps.select.outputs.available == 'true' && vars.RELEASE_PUBLISH_ENABLED == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish or verify existing npm version
+        if: steps.ready.outputs.publish == 'true'
+        env:
+          RELEASE_DIRECTORY: ${{ steps.select.outputs.directory }}
+          RELEASE_PUBLISH_ENABLED: ${{ vars.RELEASE_PUBLISH_ENABLED }}
+        run: npm run release:publish -- "$RELEASE_DIRECTORY"
+      - name: Verify public consumers and CDNs
+        if: steps.ready.outputs.publish == 'true'
+        env:
+          RELEASE_DIRECTORY: ${{ steps.select.outputs.directory }}
+        run: npm run release:smoke -- "$RELEASE_DIRECTORY"
+
+      # Only a fully uploaded, published GitHub release marks this npm version complete.
+      - uses: softprops/action-gh-release@v3
+        if: steps.ready.outputs.publish == 'true'
+        with:
+          tag_name: ${{ steps.select.outputs.tag }}
+          target_commitish: ${{ steps.build.outputs.revision }}
+          body_path: ${{ steps.select.outputs.directory }}/notes.md
+          generate_release_notes: true
+          draft: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.build.outputs.archive }}
+            ${{ steps.select.outputs.directory }}/release.json
+            ${{ steps.select.outputs.directory }}/upstream.lock.json
+            ${{ steps.select.outputs.directory }}/transform.config.json
+      - name: Complete release
+        if: steps.ready.outputs.publish == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.select.outputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
+
+      - name: Process next publication
+        if: steps.ready.outputs.publish == 'true'
+        run: gh workflow run release.yml --ref main -f dry_run=false
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: release-failures
+          path: |
+            output/release-*/
+            output/playwright/
+          if-no-files-found: ignore
+      - name: Pause releases after failure
+        if: failure()
+        run: gh workflow disable release.yml --repo "$GITHUB_REPOSITORY"

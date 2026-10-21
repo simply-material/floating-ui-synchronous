@@ -6,15 +6,14 @@ This project generates separate synchronous core and DOM packages from verified 
 The TypeScript compiler's abstract syntax tree (AST) supports structural changes to JavaScript and declarations,
 using Rollup and Terser to produce the distributions.
 
-The initial reviewed inputs are `@floating-ui/core@1.8.0`, `@floating-ui/dom@1.8.0`, and `@floating-ui/utils@0.2.12`.
-Only this pairing is currently validated. Package identities are configurable placeholders, and generated packages
-are private:
+Versions start from `@floating-ui/core@1.8.0`, `@floating-ui/dom@1.8.0`, and `@floating-ui/utils@0.2.12`.
+Public packages are emitted separately:
 
 ```text
-@floating-ui-synchronous-local/dom@1.8.0-synchronous.1
-├── @floating-ui-synchronous-local/core@1.8.0-synchronous.1 (exact dependency)
-│   └── @floating-ui/utils@^0.2.12
-└── @floating-ui/utils@^0.2.12
+@simply-material/floating-ui-dom-synchronous
+├── @simply-material/floating-ui-core-synchronous
+│   └── @floating-ui/utils (upstream range)
+└── @floating-ui/utils (upstream range)
 ```
 
 ## Build and validate
@@ -54,7 +53,7 @@ browser reports and failure traces are in `output/playwright`.
 1. Verify and extract the locked published inputs.
 2. Compare upstream asynchronous syntax with the checkpoint in `reviewed-inventory.json`.
 3. Transform both packages' implementations and declarations to synchronous contracts.
-4. Redirect DOM's imports, re-exports, declarations, and dependency to the generated core, pinned to the exact version in `transform.config.json`.
+4. Redirect DOM's imports, re-exports, declarations, and dependency to the generated core, using the translated caret range in `transform.config.json`.
 5. Generate and inspect the distributions, preserve the upstream MIT license, and record provenance.
 
 The output uses ordinary synchronous function calls. Only reviewed asynchronous return contracts are transformed;
@@ -92,29 +91,8 @@ coexist alongside them.
 
 ## Versions and provenance
 
-Edit `transform.config.json` to choose package names, UMD globals, and independent core/DOM output versions. Each
-version follows its own upstream base, for example `1.8.0-synchronous.1` followed by `1.8.0-synchronous.2` for a transformation fix.
+Each package follows upstream's major/minor, with independently allocated stable patches for source updates
+and transformer fixes. DOM's minimum core version follows upstream's requirement through published provenance.
 
-`synchronous` identifies the synchronous variant; it does not mean the package is experiment, even though the version format
-is considered a prerelease by npm. Therefore, npm's range rules still apply: `^1.8.0-synchronous.1` can accept `1.8.0-synchronous.2`,
-but does not accept `1.8.1-synchronous.1`. Consumers must update their dependency ranges when adopting another upstream base.
-
-Each package's `provenance.json` records its upstream inputs, transformer identity, configuration, and core/DOM
-validation pairing. It distinguishes the exact tested utils version from the dependency range consumers resolve.
-The pairing identifies what the test suite must validate; a build alone does not attest that tests passed.
-
-A release fingerprint excludes provenance-only changes and the package's allocated version, but includes generated
-artifacts and dependency changes. A future release workflow can use this fingerprint to publish a new `-synchronous.N`
-revision only when the generated package contents change. Published versions should never be overwritten, even if the
-transformer logic is patched / updated.
-
-## Reviewing an upstream update
-
-1. Update versions, tarball URLs, and integrity values in `upstream.lock.json`, together with the matching upstream development dependencies and npm lockfile.
-2. Review upstream implementation and declaration changes, the async inventory, and dependency assumptions in `src/build.ts`.
-3. Adjust affected transformation rules and tests, update the reviewed inventory deliberately, and select each package's output version in `transform.config.json`.
-4. Run `npm run check` to validate both generated packages together.
-
-The GitHub Actions workflow validates changes using the same command. Release discovery, supported-version policy,
-revision allocation, publication, and recovery from partial publication still need to be worked on. No publishing
-workflow or scheduled task is currently configured.
+Each package's `provenance.json` records its original upstream inputs, transformer checkout, configuration,
+and validation targets. This is used to record how the transformed version was created.

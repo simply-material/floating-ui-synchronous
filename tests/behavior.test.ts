@@ -1,6 +1,6 @@
-import * as upstream from '@floating-ui/core';
+import type * as reference from '@floating-ui/core';
 import { beforeAll, expect, it } from 'vitest';
-import { config } from '../src/config.ts';
+import { config, inputs } from '../src/config.ts';
 import { createConsumer } from './helpers/consumer.ts';
 import { chains, fixture, placements, rectangles } from './helpers/platform.ts';
 
@@ -8,10 +8,12 @@ import { chains, fixture, placements, rectangles } from './helpers/platform.ts';
  * Installed synchronous engine typed with the upstream vocabulary for shared fixtures.
  * Direct-return assertions check runtime timing; separate compiler fixtures check generated types.
  */
-let synchronous: typeof upstream;
+let synchronous: typeof reference;
+let upstream: typeof reference;
 
 beforeAll(() => {
-  synchronous = createConsumer().require(config.core.name);
+  synchronous = createConsumer('archives', ['core']).require(config.core.name);
+  upstream = createConsumer('upstream', ['core']).require(inputs.core.name);
 });
 
 it.each(chains)('matches upstream calculations and callback order: %s', async (chain) => {
@@ -73,7 +75,7 @@ it('throws measurement errors synchronously', () => {
 
 it('exposes direct middleware and detectOverflow results', () => {
   const state = fixture(synchronous, rectangles[0], false, 'bare');
-  let captured: upstream.MiddlewareState | undefined;
+  let captured: reference.MiddlewareState | undefined;
 
   synchronous.computePosition(state.reference, state.floating, {
     ...state,

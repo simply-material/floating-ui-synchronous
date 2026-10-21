@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { x as extract } from 'tar';
-import { inputs, root, type SourcePackage } from './config.ts';
+import { inputs, packageKeys, root, type PackageKey, type SourcePackage } from './config.ts';
 
 /**
  * Requires archive bytes to match the lock file's single SHA-512 integrity digest.
@@ -82,46 +82,68 @@ export async function downloadInput(input: SourcePackage): Promise<string> {
 }
 
 /**
- * Extracts locked core, DOM, and utils archives into a new directory for each build.
- * Validates archive entries and manifest identities; previously extracted files are never reused.
- * Extracted directories remain in the local cache for inspection.
- *
- * @returns Absolute package-root directories indexed by the locked input keys.
+ * Extracts selected upstream packages and their own utils into fresh verified directories.
+ * @param packages - Packages needed for transformation or reference testing; defaults to both.
+ * @returns Package keys and absolute roots for their source and utils distributions.
  */
-export async function prepareInputs(): Promise<Record<keyof typeof inputs, string>> {
+export async function prepareInputs(packages: readonly PackageKey[] = packageKeys) {
   const cache = join(root, '.cache', 'upstream');
   await mkdir(cache, { recursive: true });
-
   const directory = await mkdtemp(join(cache, 'verified-'));
-  const prepared = {} as Record<keyof typeof inputs, string>;
+  const prepared = [];
 
-  for (const key of ['core', 'dom', 'utils'] as const) {
-    const archive = await downloadInput(inputs[key]);
-    const target = join(directory, key);
-    await mkdir(target);
+  for (const key of new Set(packages)) {
+    prepared.push({
+      /** Package owning these two verified input directories. */
+      key,
 
-    await extract({
-      file: archive,
-      cwd: target,
-      strict: true,
-      filter: (path, entry) => {
-        const type = 'type' in entry ? entry.type : 'Unknown';
+      /** Extracted upstream core or DOM package root. */
+      packageDirectory: await extractInput(inputs[key], join(directory, key)),
 
-        if (!allowedArchiveEntry(path, type)) {
-          throw new Error('Unsupported tarball entry: ' + path + ' (' + type + ')');
-        }
-
-        return true;
-      },
+      /** Extracted utils selected for this package's dependency range. */
+      utilsDirectory: await extractInput(inputs.utils[key], join(directory, key + '-utils')),
     });
-
-    prepared[key] = join(target, 'package');
-    const manifest = JSON.parse(await readFile(join(prepared[key], 'package.json'), 'utf8'));
-
-    if (manifest.name !== inputs[key].name || manifest.version !== inputs[key].version) {
-      throw new Error('Unexpected upstream package identity: ' + key);
-    }
   }
 
   return prepared;
+}
+
+/**
+ * Extracts a locked input and verifies its manifest's name and version before use.
+ */
+async function extractInput(input: SourcePackage, directory: string): Promise<string> {
+  const archive = await downloadInput(input);
+  await mkdir(directory);
+  await extractArchive(archive, directory);
+
+  const packageDirectory = join(directory, 'package');
+  const manifest = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
+
+  if (manifest.name !== input.name || manifest.version !== input.version) {
+    throw new Error('Unexpected upstream package identity: ' + input.name);
+  }
+
+  return packageDirectory;
+}
+
+/**
+ * Extracts an already integrity-verified npm archive into an existing empty directory.
+ *
+ * Rejects entries outside package/, links, and special files for both upstream and reused publications.
+ */
+export async function extractArchive(archive: string, directory: string): Promise<void> {
+  await extract({
+    file: archive,
+    cwd: directory,
+    strict: true,
+    filter: (path, entry) => {
+      const type = 'type' in entry ? entry.type : 'Unknown';
+
+      if (!allowedArchiveEntry(path, type)) {
+        throw new Error('Unsupported tarball entry: ' + path + ' (' + type + ')');
+      }
+
+      return true;
+    },
+  });
 }

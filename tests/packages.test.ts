@@ -1,77 +1,26 @@
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { beforeAll, expect, it } from 'vitest';
 import { config, inputs, packageKeys, root } from '../src/config.ts';
 import { createConsumer, npm } from './helpers/consumer.ts';
+import { expectPackage } from './helpers/packages.ts';
 
 let consumer: ReturnType<typeof createConsumer>;
+let reference: ReturnType<typeof createConsumer>;
 
 beforeAll(() => {
   consumer = createConsumer();
+  reference = createConsumer('upstream');
 });
 
-it('installs two independent packages without upstream asynchronous core or DOM', () => {
-  const core = consumer.manifest('core');
-  const dom = consumer.manifest('dom');
-
-  expect(core.dependencies).toEqual({ '@floating-ui/utils': '^0.2.12' });
-  expect(dom.dependencies).toEqual({
-    '@floating-ui/utils': '^0.2.12',
-    [config.core.name]: config.core.version,
-  });
-
+it('installs independently without upstream asynchronous core or DOM', () => {
   expect(() => consumer.require.resolve('@floating-ui/core')).toThrow();
   expect(() => consumer.require.resolve('@floating-ui/dom')).toThrow();
-
-  expect(consumer.require('@floating-ui/utils/package.json').version).toBe(inputs.utils.version);
 });
 
-it.each(packageKeys)('preserves upstream distribution paths and exported names: %s', (key) => {
-  const originalDirectory = join(root, 'node_modules', '@floating-ui', key);
-  const upstream = JSON.parse(readFileSync(join(originalDirectory, 'package.json'), 'utf8'));
-  const manifest = consumer.manifest(key);
-
-  for (const field of ['main', 'module', 'types', 'unpkg', 'exports', 'sideEffects']) {
-    expect(manifest[field]).toEqual(upstream[field]);
-  }
-
-  const actualFiles = readdirSync(join(consumer.packageDirectory(key), 'dist')).sort();
-  expect(actualFiles).toEqual(readdirSync(join(originalDirectory, 'dist')).sort());
-
-  expect(Object.keys(consumer.require(config[key].name)).sort()).toEqual(
-    Object.keys(consumer.require(join(originalDirectory, upstream.main))).sort(),
-  );
-
-  for (const file of actualFiles) {
-    const contents = readFileSync(join(consumer.packageDirectory(key), 'dist', file), 'utf8');
-
-    expect(contents).not.toContain('@floating-ui/core');
-
-    if (file.endsWith('.d.ts') || file.endsWith('.d.mts'))
-      expect(contents).not.toMatch(/\b(?:Promise|Promisable)\s*</);
-
-    if (file.includes('.browser') || file.includes('.umd'))
-      expect(contents).not.toContain('@floating-ui/utils');
-  }
-
-  expect(readFileSync(join(consumer.packageDirectory(key), manifest.module), 'utf8')).toContain(
-    '@floating-ui/utils',
-  );
-
-  expect(existsSync(join(consumer.packageDirectory(key), 'LICENSE'))).toBe(true);
-
-  const provenance = JSON.parse(
-    readFileSync(join(consumer.packageDirectory(key), 'provenance.json'), 'utf8'),
-  );
-
-  expect(provenance.upstream).toEqual(inputs[key]);
-  expect(provenance.validationPair.core.version).toBe(config.core.version);
-  expect(provenance.utils).toMatchObject({
-    testVersion: inputs.utils.version,
-    dependencyRange: '^0.2.12',
-  });
-  expect(provenance.releaseFingerprint).toMatch(/^[a-f0-9]{64}$/);
+it.each(packageKeys)('preserves installed package contracts: %s', (key) => {
+  expectPackage(consumer, reference, key);
 });
 
 const measurement = readFileSync(new URL('./fixtures/measurement.js', import.meta.url), 'utf8');

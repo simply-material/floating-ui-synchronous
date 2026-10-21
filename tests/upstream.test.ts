@@ -6,7 +6,7 @@ import { allowedArchiveEntry, verifyIntegrity } from '../src/upstream.ts';
 import { inputs, root } from '../src/config.ts';
 
 it('keeps the differential reference dependencies aligned with the locked inputs', () => {
-  for (const input of Object.values(inputs)) {
+  for (const input of [inputs.core, inputs.dom, inputs.utils.core, inputs.utils.dom]) {
     const manifest = JSON.parse(
       readFileSync(join(root, 'node_modules', input.name, 'package.json'), 'utf8'),
     );

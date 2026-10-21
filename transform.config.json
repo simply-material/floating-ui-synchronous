@@ -1,13 +1,14 @@
 {
-  "private": true,
+  "private": false,
   "core": {
-    "name": "@floating-ui-synchronous-local/core",
-    "version": "1.8.0-synchronous.1",
+    "name": "@simply-material/floating-ui-core-synchronous",
+    "version": "1.8.0",
     "global": "FloatingUISynchronousCore"
   },
   "dom": {
-    "name": "@floating-ui-synchronous-local/dom",
-    "version": "1.8.0-synchronous.1",
-    "global": "FloatingUISynchronousDOM"
+    "name": "@simply-material/floating-ui-dom-synchronous",
+    "version": "1.8.0",
+    "global": "FloatingUISynchronousDOM",
+    "coreRange": "^1.8.0"
   }
 }
