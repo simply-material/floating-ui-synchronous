@@ -21,8 +21,8 @@ Each run first finishes any npm publication missing its completed GitHub release
 3. A transformer update for the newest eligible core version.
 4. A transformer update for the newest eligible DOM version.
 
-Transformer updates follow commits affecting `src`, build dependencies, output configuration, or
-the reviewed inventory.
+Package updates follow commits affecting `src`, build dependencies, output configuration,
+the reviewed inventory, or the root README included in both packages.
 
 ## How are versions allocated?
 

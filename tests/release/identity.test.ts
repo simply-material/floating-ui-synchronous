@@ -48,6 +48,7 @@ it.each([
   'package-lock.json',
   'transform.config.json',
   'reviewed-inventory.json',
+  'README.md',
 ])('counts a relevant commit: %s', (path) => {
   const repo = repository();
   repo.write(path, 'changed');
@@ -60,7 +61,7 @@ it.each([
   });
 });
 
-it.each(['README.md', 'tests/example.test.ts', 'scripts/example.ts', 'upstream.lock.json'])(
+it.each(['MAINTAINER.md', 'tests/example.test.ts', 'scripts/example.ts', 'upstream.lock.json'])(
   'does not republish merely for %s changes',
   (path) => {
     const repo = repository();

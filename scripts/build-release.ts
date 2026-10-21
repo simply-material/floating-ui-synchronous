@@ -154,17 +154,7 @@ const notes = [
   '',
   `[npm package](https://www.npmjs.com/package/${plan.name}/v/${plan.version})`,
   '',
-  `Transforms ${plan.identity.upstream.name}@${plan.identity.upstream.version}. Reason: ${plan.reason}.`,
-  ...(plan.key === 'dom'
-    ? [
-        '',
-        `Core dependency: ${configuration.dom.coreRange}; validated with ${configuration.core.version}.`,
-      ]
-    : []),
-  '',
   `[Upstream changelog](https://github.com/floating-ui/floating-ui/blob/master/packages/${plan.key}/CHANGELOG.md)`,
-  '',
-  'The attached tarball is the npm distribution. release.json and provenance.json record its inputs.',
   ...(report.dirty ? ['', '**Uncommitted preview: provisional version; no publication.**'] : []),
   '',
 ].join('\n');

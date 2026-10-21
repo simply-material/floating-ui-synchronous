@@ -61,6 +61,6 @@ for how the repository:
 
 See:
 
-- [MAINTAINER.md](MAINTAINER.md) for information on how to navigate and work with the repository.
-- [RELEASING.md](RELEASING.md) for an overview of the release flow.
-- [TYPESCRIPT_AST.md](TYPESCRIPT_AST.md) for an introduction to TypeScript's abstract syntax tree API.
+- [MAINTAINER.md](https://github.com/simply-material/floating-ui-synchronous/blob/main/MAINTAINER.md) for information on how to navigate and work with the repository.
+- [RELEASING.md](https://github.com/simply-material/floating-ui-synchronous/blob/main/RELEASING.md) for an overview of the release flow.
+- [TYPESCRIPT_AST.md](https://github.com/simply-material/floating-ui-synchronous/blob/main/TYPESCRIPT_AST.md) for an introduction to TypeScript's abstract syntax tree API.

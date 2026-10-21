@@ -26,6 +26,12 @@ it('rebuilds identical artifacts in a separate output directory', async () => {
   await build(outputDirectory);
 
   expect(artifacts(outputDirectory)).toEqual(before);
+
+  for (const key of ['core', 'dom']) {
+    expect(readFileSync(join(outputDirectory, key, 'README.md'), 'utf8')).toBe(
+      readFileSync(join(root, 'README.md'), 'utf8'),
+    );
+  }
 });
 
 it('builds core alone without downloading DOM or claiming DOM validation', async () => {

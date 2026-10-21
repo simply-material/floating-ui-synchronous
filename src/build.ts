@@ -70,6 +70,7 @@ export function transformerIdentity(directory = root): TransformerIdentity {
       'package-lock.json',
       'transform.config.json',
       'reviewed-inventory.json',
+      'README.md',
     ),
   };
 }
@@ -264,13 +265,7 @@ export async function build(
 
     files['package.json'] = json(manifest);
     files['LICENSE'] = await readFile(join(packageDirectory, 'LICENSE'), 'utf8');
-    files['README.md'] = [
-      `# ${config[key].name}`,
-      `Generated from ${inputs[key].name}@${inputs[key].version}.`,
-      'Positioning, platform methods and middleware execute synchronously. Custom callbacks, including size.apply, must be synchronous.',
-      'Major/minor versions follow the original Floating UI packages; patch versions also include transformer fixes. See provenance.json for exact inputs.',
-      '',
-    ].join('\n\n');
+    files['README.md'] = await readFile(join(root, 'README.md'), 'utf8');
     files['provenance.json'] = json({
       // Version of this metadata structure, independent of either package's release version.
       schemaVersion: 2,
