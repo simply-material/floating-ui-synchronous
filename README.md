@@ -59,4 +59,8 @@ for how the repository:
 - Publishes the transformed packages.
 - Tests and verifies the transformed packages.
 
-See [MAINTAINER.md](MAINTAINER.md) for information on how to navigate and work with the repository.
+See:
+
+- [MAINTAINER.md](MAINTAINER.md) for information on how to navigate and work with the repository.
+- [RELEASING.md](RELEASING.md) for an overview of the release flow.
+- [TYPESCRIPT_AST.md](TYPESCRIPT_AST.md) for an introduction to TypeScript's abstract syntax tree API.

@@ -2,6 +2,7 @@
   "name": "floating-ui-synchronous",
   "version": "1.0.0",
   "description": "Reproducible synchronous distributions of Floating UI core and DOM",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
