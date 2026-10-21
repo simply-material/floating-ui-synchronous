@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { repository } from '../src/config.ts';
 import { verifyIntegrity } from '../src/upstream.ts';
@@ -9,12 +10,40 @@ import {
   readReport,
   registryPackage,
   releaseDirectory,
+  type RegistryPackage,
 } from './release-helpers.ts';
 
 const directory = releaseDirectory();
 const report = readReport(directory);
 const { plan } = report;
 const dryRun = process.env.FLOATING_UI_DRY_RUN === 'true';
+
+/**
+ * Waits for npm to expose an accepted publication before its contents are verified.
+ * Only missing versions are retried; registry errors still fail the run.
+ */
+async function waitForPublication(): Promise<RegistryPackage> {
+  const deadline = Date.now() + 10 * 60_000;
+
+  while (true) {
+    const registry = await registryPackage(plan.name);
+
+    if (registry.versions[plan.version]) {
+      return registry;
+    }
+
+    const remaining = deadline - Date.now();
+
+    if (remaining <= 0) {
+      throw new Error(
+        `npm accepted ${plan.name}@${plan.version}, but the version is still unavailable after 10 minutes. Retry the workflow once it appears on npm.`,
+      );
+    }
+
+    console.log(`Waiting for npm to make ${plan.name}@${plan.version} available...`);
+    await setTimeout(Math.min(15_000, remaining));
+  }
+}
 
 if (
   !isDeepStrictEqual(report, JSON.parse(readFileSync(join(directory, 'validated.json'), 'utf8')))
@@ -58,7 +87,7 @@ if (!registry.versions[plan.version]) {
   ]);
 
   if (!dryRun) {
-    registry = await registryPackage(plan.name);
+    registry = await waitForPublication();
   }
 }
 

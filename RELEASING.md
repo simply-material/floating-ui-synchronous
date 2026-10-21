@@ -9,6 +9,10 @@ The release workflow runs when `main` changes, daily at 09:00 UTC, and through *
 Each run handles one package. After a successful publication, consumer checks, and GitHub release,
 it dispatches another run. A run with nothing to release stops the chain.
 
+After npm accepts a publication, we check every 15 seconds for up to ten minutes for the version
+to become available before verifying it. If processing takes longer, retry the workflow once it appears on npm.
+The workflow will resume that publication from where it left off.
+
 We process stable, non-deprecated upstream versions at or above each package's version in
 `upstream.lock.json`, including maintenance releases published later on older lines. Published
 provenance identifies which upstream versions we have already transformed. Our own patch numbers
